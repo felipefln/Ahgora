@@ -1,0 +1,205 @@
+<html>
+<head>
+<title>Test Ahgora</title>
+<!-- Latest compiled and minified CSS -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+
+<!-- Optional theme -->
+<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+</head>
+
+<body>
+
+
+
+
+<div class="form-group">
+  <label for="term">Search:</label>
+  <input type="text" class="form-control" name="term" id="term">
+</div>
+<button class="btn btn-success">Search</button>
+
+
+
+<script type="text/javascript">
+    //parametros de autenticação com API do Youtube
+    var api_key = "AIzaSyARyoIUGQLBbZ1LmWwre9IQjl-4Dymtqzo";
+    var api_url = "https://www.googleapis.com/youtube/v3/";
+    var api_url2 = "";
+
+    var duration = 0;
+    var minutes_total_duration_temp = 0;
+
+$( document ).ready(function() {
+
+
+    function sumDuration(){
+
+    }
+
+    //função que formata o valor do tempo e os unes praa dar o valor total
+    function parseDuration(duration){
+        var res = 0;
+        duration = duration.split("S")[0];
+        duration = duration.split("PT")[1];
+        var time = duration.split("M");
+        minute = time[0];
+        second = time[1];
+        console.log(minute + ":"+second)
+        res = minute
+
+        res =  parseFloat(res);
+        return res;
+
+    }
+
+
+    //função de pega as caracteristicas e os detalhes do video para ser exibido
+    function getDetail( index, videoId ){
+
+         var url = api_url+"videos?part=contentDetails&id="+videoId+"&key="+api_key;
+         $.ajax({
+              url: url
+            })
+             .done(function( data ) {
+                if (data.items[0] != undefined ){
+                var duration_temp = (parseDuration(data.items[0].contentDetails.duration)).toFixed(2) +" minutes";
+                var total_duration_temp = (parseDuration(data.items[0].contentDetails.duration) / (60 * 24 )).toFixed(2) +" days";
+                minutes_total_duration_temp += (parseDuration(data.items[0].contentDetails.duration) );
+
+                $("#duration").html(total_duration_temp);
+                $("#minutes_duration").html(minutes_total_duration_temp.toFixed(2) +" minutes");
+                $("#duration_"+index).html(duration_temp);
+                }
+
+              })
+              .fail(function( data ) {
+                console.log( data );
+              });
+
+
+
+    }
+
+    //função para obter a ultima posição
+    function getLastPosition( words, position ){
+        words = words.reverse();
+        return words.splice(position, position);
+    }
+
+    //função para obter as palavras mais usadas
+    function sanitize(words){
+          for(var i in words){
+            if ( words[i].el.length < 4 ){
+                words.splice(i, 1);
+            }
+          }
+          return words;
+    }
+
+    function compare(a,b) {
+      if (a.count < b.count)
+        return -1;
+      if (a.count > b.count)
+        return 1;
+      return 0;
+    }
+
+    response = function(data){
+
+        var snippet, item, thumb, videoId, title, description, total_duration, detail;
+        var words = [];
+        var words_temp = [];
+
+
+        for(var i in data.items){
+
+
+            item = data.items[i];
+            snippet = item.snippet;
+            title = snippet.title;
+            description = snippet.description;
+            thumb = snippet.thumbnails.default;
+            videoId = item.id.videoId;
+            getDetail( i, videoId );
+            words_temp = title.split(" ");
+            for(var word_index in words_temp){
+                words.push(words_temp[word_index]);
+            }
+
+            words_temp = description.split(" ");
+            for(var word_index in words_temp){
+                words.push(words_temp[word_index]);
+            }
+
+
+
+            $("#res").append("<h2>"+title+" <small id='duration_"+i+"'><small></h2>");
+
+
+            $("#res").append("");
+            $("#res").append("<a href='http://youtube.com/watch?v="+videoId+"' target='blank'><img src='"+thumb.url+"' height='"+thumb.height+"' width='"+thumb.width+"' border='0'/></a>");
+            $("#res").append("");
+            $("#res").append("<br\>");
+            $("#res").append("<small>"+description+"</smalls>");
+            $("#res").append("<br\>");
+
+
+        }
+
+        words = words.reduce((b,c)=>((b[b.findIndex(d=>d.el===c)]||b[b.push({el:c,count:0})-1]).count++,b),[]);
+        words = sanitize(words);
+        words = getLastPosition(words, 5);
+        words = words.sort(compare);
+
+        $("#res").append("<h2>Most used words</h2>");
+        for(var i in words) {
+            $("#res").append(words[i].el);
+            $("#res").append("<br\>");
+        }
+
+
+
+        $("#res").append("<br\>");
+        $("#res").append("<h2>Total Duration</h2>");
+
+        $("#res").append("<h1 id='duration'></h1>");
+        $("#res").append("<h1 id='minutes_duration'></h1>");
+
+        $("#res").append("<br\>");
+
+
+
+    }
+
+     $( "button" ).click(function(){
+        var term = $("#term").val();
+
+
+
+        $.ajax({
+              url: "https://www.googleapis.com/youtube/v3/search?key="+api_key+"&part=snippet&q="+term,
+              beforeSend: function( xhr ) {
+               $("#res").html("");
+              }
+            })
+             .done(function( data ) {
+                response(data);
+
+              })
+              .fail(function( data ) {
+                response(data);
+              });
+    });
+
+    });
+
+</script>
+<div id="res"></div>
+</body>
+
+</html>
